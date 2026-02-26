@@ -100,6 +100,16 @@ export async function POST(request: Request) {
                 if (refUser) referrerId = refUser.id;
             }
 
+            // Fallback to dev wallet if no referrer found and this user isn't the dev wallet
+            if (!referrerId && address !== ROOT_ADMIN_WALLET) {
+                const { data: devUser } = await supabaseAdmin
+                    .from('users')
+                    .select('id')
+                    .eq('wallet_address', ROOT_ADMIN_WALLET)
+                    .single();
+                if (devUser) referrerId = devUser.id;
+            }
+
             // Create User
             const { data: newUser, error: createError } = await supabaseAdmin
                 .from('users')
