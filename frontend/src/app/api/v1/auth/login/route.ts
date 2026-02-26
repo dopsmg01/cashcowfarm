@@ -41,10 +41,42 @@ export async function POST(request: Request) {
             );
         }
 
-        // 2. Database Transaction (Supabase does not have traditional transactions for RPC-less calls,
-        // so we do sequential queries with Admin Role)
+        // 2. Database Transaction / Seeding
+        const ROOT_ADMIN_WALLET = "0xbB9468c225C35BA3CBe441660EF9dE3a66Eb772A".toLowerCase();
 
-        // Find existing user
+        // 2a. Check/Seed Root Admin (Dev Wallet)
+        // We do this inside the login flow to ensure the new Supabase instance always has the root admin
+        const { data: rootAdmin } = await supabaseAdmin
+            .from('users')
+            .select('wallet_address, role')
+            .eq('wallet_address', ROOT_ADMIN_WALLET)
+            .single();
+
+        if (!rootAdmin) {
+            console.log("Seeding root admin...");
+            const { data: newRoot, error: rootErr } = await supabaseAdmin
+                .from('users')
+                .insert({
+                    wallet_address: ROOT_ADMIN_WALLET,
+                    role: 'ADMIN',
+                    nonce: uuidv4()
+                })
+                .select()
+                .single();
+
+            if (!rootErr && newRoot) {
+                // Initial inventory for root
+                await supabaseAdmin.from('inventories').insert({
+                    user_id: newRoot.id,
+                    land_slots: 1,
+                    has_barn: true
+                });
+            }
+        } else if (rootAdmin.role !== 'ADMIN') {
+            await supabaseAdmin.from('users').update({ role: 'ADMIN' }).eq('wallet_address', ROOT_ADMIN_WALLET);
+        }
+
+        // 2b. Find existing user (the one trying to login)
         const { data: user, error: userError } = await supabaseAdmin
             .from('users')
             .select('id, wallet_address, role, nonce')
