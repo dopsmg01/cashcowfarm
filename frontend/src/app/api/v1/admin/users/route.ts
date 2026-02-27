@@ -41,7 +41,7 @@ export async function GET(request: Request) {
             cowMap[c.owner_id] = (cowMap[c.owner_id] || 0) + 1;
         });
 
-        const enrichedUsers = users.map(u => ({
+        const enrichedUsers = users.map((u: any) => ({
             ...u,
             cow_count: cowMap[u.id] || 0,
             cow_token: u.points // mapping backend 'points' to frontend 'cow_token'

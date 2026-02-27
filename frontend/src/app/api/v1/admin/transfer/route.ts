@@ -34,9 +34,8 @@ export async function POST(request: Request) {
             .eq('wallet_address', address)
             .single();
 
-        if (fetchErr) return NextResponse.json({ status: 'error', message: 'Target user not found' }, { status: 404 });
-
-        const currentVal = parseFloat(user[column]) || 0;
+        const userData = user as any;
+        const currentVal = parseFloat(userData[column]) || 0;
         const newVal = currentVal + amt;
 
         const { error: updateErr } = await supabaseAdmin

@@ -31,7 +31,7 @@ export async function GET(request: Request) {
         let totalUsdt = 0;
         let totalCowToken = 0;
 
-        balances?.forEach(u => {
+        (balances as any[])?.forEach((u: any) => {
             totalGold += parseFloat(u.gold_balance) || 0;
             totalUsdt += parseFloat(u.usdt_balance) || 0;
             totalCowToken += parseFloat(u.points) || 0;
