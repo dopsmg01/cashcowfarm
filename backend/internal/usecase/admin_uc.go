@@ -36,21 +36,25 @@ func (uc *AdminUsecase) TransferItem(ctx context.Context, adminID uuid.UUID, tar
 			return fmt.Errorf("target user not found: %s", targetWallet)
 		}
 
+		var updateErr error
 		switch strings.ToUpper(itemType) {
 		case "GOLD":
-			tx.Model(&target).Update("gold_balance", gorm.Expr("gold_balance + ?", amount))
+			updateErr = tx.Model(&target).Update("gold_balance", gorm.Expr("gold_balance + ?", amount)).Error
 		case "USDT":
-			tx.Model(&target).Update("usdt_balance", gorm.Expr("usdt_balance + ?", amount))
+			updateErr = tx.Model(&target).Update("usdt_balance", gorm.Expr("usdt_balance + ?", amount)).Error
 		case "COW_TOKEN":
-			tx.Model(&target).Update("points", gorm.Expr("points + ?", amount))
+			updateErr = tx.Model(&target).Update("points", gorm.Expr("points + ?", amount)).Error
 		case "GRASS":
-			tx.Model(&domain.Inventory{}).Where("user_id = ?", target.ID).Update("grass", gorm.Expr("grass + ?", amount.IntPart()))
+			updateErr = tx.Model(&domain.Inventory{}).Where("user_id = ?", target.ID).Update("grass", gorm.Expr("grass + ?", amount.IntPart())).Error
 		case "MILK":
-			tx.Model(&domain.Inventory{}).Where("user_id = ?", target.ID).Update("milk", gorm.Expr("milk + ?", amount.IntPart()))
+			updateErr = tx.Model(&domain.Inventory{}).Where("user_id = ?", target.ID).Update("milk", gorm.Expr("milk + ?", amount.IntPart())).Error
 		case "LAND":
-			tx.Model(&domain.Inventory{}).Where("user_id = ?", target.ID).Update("land_slots", gorm.Expr("land_slots + ?", amount.IntPart()))
+			updateErr = tx.Model(&domain.Inventory{}).Where("user_id = ?", target.ID).Update("land_slots", gorm.Expr("land_slots + ?", amount.IntPart())).Error
 		default:
 			return fmt.Errorf("unknown item type: %s", itemType)
+		}
+		if updateErr != nil {
+			return fmt.Errorf("failed to update %s balance: %w", itemType, updateErr)
 		}
 
 		// Log the transaction
@@ -88,7 +92,9 @@ func (uc *AdminUsecase) ListUsers(ctx context.Context) ([]UserListItem, error) {
 	items := make([]UserListItem, 0, len(users))
 	for _, u := range users {
 		var cowCount int64
-		uc.db.WithContext(ctx).Model(&domain.Cow{}).Where("owner_id = ?", u.ID).Count(&cowCount)
+		if err := uc.db.WithContext(ctx).Model(&domain.Cow{}).Where("owner_id = ?", u.ID).Count(&cowCount).Error; err != nil {
+			return nil, fmt.Errorf("failed to count cows for user %s: %w", u.ID, err)
+		}
 
 		items = append(items, UserListItem{
 			ID:            u.ID.String(),
@@ -117,13 +123,23 @@ type PlatformStats struct {
 func (uc *AdminUsecase) GetPlatformStats(ctx context.Context) (*PlatformStats, error) {
 	var stats PlatformStats
 
-	uc.db.WithContext(ctx).Model(&domain.User{}).Count(&stats.TotalUsers)
-	uc.db.WithContext(ctx).Model(&domain.Cow{}).Count(&stats.TotalCows)
+	if err := uc.db.WithContext(ctx).Model(&domain.User{}).Count(&stats.TotalUsers).Error; err != nil {
+		return nil, fmt.Errorf("failed to count users: %w", err)
+	}
+	if err := uc.db.WithContext(ctx).Model(&domain.Cow{}).Count(&stats.TotalCows).Error; err != nil {
+		return nil, fmt.Errorf("failed to count cows: %w", err)
+	}
 
 	var goldSum, usdtSum, cowSum decimal.NullDecimal
-	uc.db.WithContext(ctx).Model(&domain.User{}).Select("COALESCE(SUM(gold_balance), 0)").Scan(&goldSum)
-	uc.db.WithContext(ctx).Model(&domain.User{}).Select("COALESCE(SUM(usdt_balance), 0)").Scan(&usdtSum)
-	uc.db.WithContext(ctx).Model(&domain.User{}).Select("COALESCE(SUM(points), 0)").Scan(&cowSum)
+	if err := uc.db.WithContext(ctx).Model(&domain.User{}).Select("COALESCE(SUM(gold_balance), 0)").Scan(&goldSum).Error; err != nil {
+		return nil, fmt.Errorf("failed to sum gold balances: %w", err)
+	}
+	if err := uc.db.WithContext(ctx).Model(&domain.User{}).Select("COALESCE(SUM(usdt_balance), 0)").Scan(&usdtSum).Error; err != nil {
+		return nil, fmt.Errorf("failed to sum USDT balances: %w", err)
+	}
+	if err := uc.db.WithContext(ctx).Model(&domain.User{}).Select("COALESCE(SUM(points), 0)").Scan(&cowSum).Error; err != nil {
+		return nil, fmt.Errorf("failed to sum COW token balances: %w", err)
+	}
 
 	if goldSum.Valid {
 		stats.TotalGold = goldSum.Decimal.String()

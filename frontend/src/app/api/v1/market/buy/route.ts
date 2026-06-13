@@ -46,45 +46,57 @@ export async function POST(request: Request) {
         // Execute Purchase Logic (Sequential pseudo-transaction)
 
         // 1. Deduct funds from buyer
-        await supabaseAdmin
+        const { error: deductErr } = await supabaseAdmin
             .from('users')
             .update({ usdt_balance: buyer.usdt_balance - listing.price_usdt })
             .eq('id', auth.userId);
 
+        if (deductErr) throw deductErr;
+
         // 2. Add funds to seller (Need to fetch seller first to update balance safely in a non-RPC way)
-        const { data: seller } = await supabaseAdmin
+        const { data: seller, error: sellerFetchErr } = await supabaseAdmin
             .from('users')
             .select('usdt_balance')
             .eq('id', listing.seller_id)
             .single();
 
+        if (sellerFetchErr) throw sellerFetchErr;
+
         if (seller) {
-            await supabaseAdmin
+            const { error: sellerUpdateErr } = await supabaseAdmin
                 .from('users')
                 .update({ usdt_balance: seller.usdt_balance + listing.price_usdt })
                 .eq('id', listing.seller_id);
+
+            if (sellerUpdateErr) throw sellerUpdateErr;
         }
 
         // 3. Mark listing as SOLD
-        await supabaseAdmin
+        const { error: listingUpdateErr } = await supabaseAdmin
             .from('market_listings')
             .update({ status: 'SOLD' })
             .eq('id', listing.id);
 
+        if (listingUpdateErr) throw listingUpdateErr;
+
         // 4. Transfer Item (e.g. Grass) -> Simplistic MVP logic: add to inventory
         if (listing.item_type === 'GRASS' || listing.item_type === 'MILK') {
             const field = listing.item_type.toLowerCase();
-            const { data: bInv } = await supabaseAdmin
+            const { data: bInv, error: invFetchErr } = await supabaseAdmin
                 .from('inventories')
                 .select(field)
                 .eq('user_id', auth.userId)
                 .single();
 
+            if (invFetchErr) throw invFetchErr;
+
             if (bInv) {
-                await supabaseAdmin
+                const { error: invUpdateErr } = await supabaseAdmin
                     .from('inventories')
                     .update({ [field]: bInv[field] + listing.quantity })
                     .eq('user_id', auth.userId);
+
+                if (invUpdateErr) throw invUpdateErr;
             }
         }
 

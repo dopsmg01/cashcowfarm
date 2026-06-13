@@ -298,13 +298,15 @@ func (uc *MarketUsecase) SellMilkForGold(ctx context.Context, userID uuid.UUID, 
 			return err
 		}
 
-		tx.Create(&domain.TxLog{
+		if err := tx.Create(&domain.TxLog{
 			UserID:   userID,
 			Type:     "SELL_MILK_GOLD",
 			Amount:   goldReward,
 			Currency: "GOLD",
 			Status:   domain.TxSuccess,
-		})
+		}).Error; err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -356,15 +358,21 @@ func (uc *MarketUsecase) BuyInAppItemWithGold(ctx context.Context, userID uuid.U
 		switch itemType {
 		case "GRASS":
 			var inv domain.Inventory
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&inv).Error; err == nil {
-				inv.Grass += quantity
-				tx.Save(&inv)
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&inv).Error; err != nil {
+				return errors.New("Inventory not found")
+			}
+			inv.Grass += quantity
+			if err := tx.Save(&inv).Error; err != nil {
+				return err
 			}
 		case "LAND":
 			var inv domain.Inventory
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&inv).Error; err == nil {
-				inv.LandSlots += quantity
-				tx.Save(&inv)
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&inv).Error; err != nil {
+				return errors.New("Inventory not found")
+			}
+			inv.LandSlots += quantity
+			if err := tx.Save(&inv).Error; err != nil {
+				return err
 			}
 		case "BABY_COW", "COW":
 			cowType := domain.TypeStandard // In-app are standard cows
@@ -376,17 +384,21 @@ func (uc *MarketUsecase) BuyInAppItemWithGold(ctx context.Context, userID uuid.U
 					Happiness:        100,
 					ExpectedLifespan: time.Now().AddDate(0, 3, 0),
 				}
-				tx.Create(&cow)
+				if err := tx.Create(&cow).Error; err != nil {
+					return err
+				}
 			}
 		}
 
-		tx.Create(&domain.TxLog{
+		if err := tx.Create(&domain.TxLog{
 			UserID:   userID,
 			Type:     "BUY_ITEM_GOLD",
 			Amount:   totalPrice,
 			Currency: "GOLD",
 			Status:   domain.TxSuccess,
-		})
+		}).Error; err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -429,13 +441,15 @@ func (uc *MarketUsecase) SwapGoldToTokens(ctx context.Context, userID uuid.UUID,
 			return err
 		}
 
-		tx.Create(&domain.TxLog{
+		if err := tx.Create(&domain.TxLog{
 			UserID:   userID,
 			Type:     "GOLD_SWAP",
 			Amount:   goldAmount,
 			Currency: "GOLD",
 			Status:   domain.TxSuccess,
-		})
+		}).Error; err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -529,22 +543,27 @@ func (uc *MarketUsecase) BuyFromPlatform(ctx context.Context, buyerID uuid.UUID,
 		if upline != nil {
 			// Found an eligible upline! Give them the 20%
 			var uplineUser domain.User
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", upline.ID).First(&uplineUser).Error; err == nil {
-				if currency == "USDT" {
-					uplineUser.USDTBalance = uplineUser.USDTBalance.Add(refCut)
-				} else {
-					uplineUser.Points = uplineUser.Points.Add(refCut)
-				}
-				tx.Save(&uplineUser)
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", upline.ID).First(&uplineUser).Error; err != nil {
+				return errors.New("Upline user not found")
+			}
+			if currency == "USDT" {
+				uplineUser.USDTBalance = uplineUser.USDTBalance.Add(refCut)
+			} else {
+				uplineUser.Points = uplineUser.Points.Add(refCut)
+			}
+			if err := tx.Save(&uplineUser).Error; err != nil {
+				return err
+			}
 
-				// Log Referral Bonus
-				tx.Create(&domain.TxLog{
-					UserID:   uplineUser.ID,
-					Type:     "REFERRAL_BONUS",
-					Amount:   refCut,
-					Currency: currency,
-					Status:   domain.TxSuccess,
-				})
+			// Log Referral Bonus
+			if err := tx.Create(&domain.TxLog{
+				UserID:   uplineUser.ID,
+				Type:     "REFERRAL_BONUS",
+				Amount:   refCut,
+				Currency: currency,
+				Status:   domain.TxSuccess,
+			}).Error; err != nil {
+				return err
 			}
 		} else {
 			// No eligible upline found. The 20% "Rolls-up" to the Dev Treasury.
@@ -552,9 +571,15 @@ func (uc *MarketUsecase) BuyFromPlatform(ctx context.Context, buyerID uuid.UUID,
 		}
 
 		// Log the system distributions
-		tx.Create(&domain.TxLog{UserID: buyerID, Type: "PLATFORM_BUY", Amount: price, Currency: currency, Status: domain.TxSuccess})
-		tx.Create(&domain.TxLog{UserID: buyerID, Type: "TREASURY_LP_BUYBACK", Amount: lpCut, Currency: currency, Status: domain.TxSuccess})
-		tx.Create(&domain.TxLog{UserID: buyerID, Type: "TREASURY_DEV_FEE", Amount: devCut, Currency: currency, Status: domain.TxSuccess})
+		if err := tx.Create(&domain.TxLog{UserID: buyerID, Type: "PLATFORM_BUY", Amount: price, Currency: currency, Status: domain.TxSuccess}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&domain.TxLog{UserID: buyerID, Type: "TREASURY_LP_BUYBACK", Amount: lpCut, Currency: currency, Status: domain.TxSuccess}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&domain.TxLog{UserID: buyerID, Type: "TREASURY_DEV_FEE", Amount: devCut, Currency: currency, Status: domain.TxSuccess}).Error; err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -588,7 +613,9 @@ func (uc *MarketUsecase) StakeInApp(ctx context.Context, userID uuid.UUID, asset
 				return errors.New("Susu tidak mencukupi")
 			}
 			inv.Milk -= int(amount.IntPart())
-			tx.Save(&inv)
+			if err := tx.Save(&inv).Error; err != nil {
+				return err
+			}
 		} else {
 			return errors.New("Tipe aset tidak didukung")
 		}
@@ -644,9 +671,12 @@ func (uc *MarketUsecase) ClaimInAppRewards(ctx context.Context, userID uuid.UUID
 				// 1000 Gold = 0.1 Milk / hour
 				reward := stake.Amount.Div(decimal.NewFromInt(10000)).Mul(decimal.NewFromFloat(hours))
 				var inv domain.Inventory
-				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&inv).Error; err == nil {
-					inv.Milk += int(reward.IntPart())
-					tx.Save(&inv)
+				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&inv).Error; err != nil {
+					return errors.New("Inventory not found for staking reward")
+				}
+				inv.Milk += int(reward.IntPart())
+				if err := tx.Save(&inv).Error; err != nil {
+					return err
 				}
 			} else if stake.AssetType == "MILK" {
 				// 10 Milk = 1 Gold / hour
@@ -655,7 +685,9 @@ func (uc *MarketUsecase) ClaimInAppRewards(ctx context.Context, userID uuid.UUID
 			}
 
 			// Update last claimed time
-			tx.Model(stake).Update("last_claimed_at", now)
+			if err := tx.Model(stake).Update("last_claimed_at", now).Error; err != nil {
+				return err
+			}
 		}
 
 		return tx.Save(&user).Error
@@ -675,15 +707,19 @@ func (uc *MarketUsecase) Deposit(ctx context.Context, userID uuid.UUID, asset st
 			user.Points = user.Points.Add(amount)
 		} else if asset == "USDT" {
 			user.USDTBalance = user.USDTBalance.Add(amount)
+		} else {
+			return errors.New("Tipe aset tidak didukung, hanya COW atau USDT")
 		}
 
-		tx.Create(&domain.TxLog{
+		if err := tx.Create(&domain.TxLog{
 			UserID:   userID,
 			Type:     "DEPOSIT",
 			Amount:   amount,
 			Currency: asset,
 			Status:   domain.TxSuccess,
-		})
+		}).Error; err != nil {
+			return err
+		}
 
 		return tx.Save(&user).Error
 	})
@@ -706,15 +742,19 @@ func (uc *MarketUsecase) Withdraw(ctx context.Context, userID uuid.UUID, asset s
 				return errors.New("Saldo USDT tidak mencukupi")
 			}
 			user.USDTBalance = user.USDTBalance.Sub(amount)
+		} else {
+			return errors.New("Tipe aset tidak didukung, hanya COW atau USDT")
 		}
 
-		tx.Create(&domain.TxLog{
+		if err := tx.Create(&domain.TxLog{
 			UserID:   userID,
 			Type:     "WITHDRAW",
 			Amount:   amount,
 			Currency: asset,
 			Status:   domain.TxSuccess,
-		})
+		}).Error; err != nil {
+			return err
+		}
 
 		return tx.Save(&user).Error
 	})

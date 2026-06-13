@@ -127,7 +127,9 @@ func (uc *FarmUsecase) GetFarmStatus(ctx context.Context, userID uuid.UUID) (*Fa
 
 	// Fetch stakes
 	var stakes []domain.Web2Stake
-	uc.db.WithContext(ctx).Where("user_id = ?", userID).Find(&stakes)
+	if err := uc.db.WithContext(ctx).Where("user_id = ?", userID).Find(&stakes).Error; err != nil {
+		return nil, errors.New("Gagal mengambil data staking")
+	}
 
 	return &FarmStatusResult{
 		Cows:         cows,
