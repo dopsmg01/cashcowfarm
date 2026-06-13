@@ -4,9 +4,11 @@ import { SignJWT } from 'jose';
 import { verifyMessage } from 'ethers';
 import { v4 as uuidv4 } from 'uuid';
 
-const JWT_SECRET = new TextEncoder().encode(
-    process.env.JWT_SECRET || 'super_secret_dev_key_123!'
-);
+const jwtSecretValue = process.env.JWT_SECRET;
+if (!jwtSecretValue) {
+    console.error('[SECURITY] FATAL: JWT_SECRET environment variable is not set.');
+}
+const JWT_SECRET = new TextEncoder().encode(jwtSecretValue || '');
 
 export async function POST(request: Request) {
     try {
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
 
         if (recoveredAddress !== address) {
             return NextResponse.json(
-                { status: 'error', message: `Signature mismatch: recovered ${recoveredAddress}, expected ${address}` },
+                { status: 'error', message: 'Signature verification failed' },
                 { status: 403 }
             );
         }
@@ -177,7 +179,7 @@ export async function POST(request: Request) {
     } catch (error: any) {
         console.error('Login error:', error);
         return NextResponse.json(
-            { status: 'error', message: error.message || 'Internal server error' },
+            { status: 'error', message: 'Internal server error' },
             { status: 500 }
         );
     }

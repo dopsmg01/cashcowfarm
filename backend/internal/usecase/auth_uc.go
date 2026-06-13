@@ -242,7 +242,8 @@ func (uc *AuthUsecase) LoginOrRegister(ctx context.Context, walletAddress string
 func generateJWT(user domain.User) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "super_secret_dev_key_123!" // Fallback for dev
+		log.Println("[SECURITY] FATAL: JWT_SECRET environment variable is not set. Refusing to issue tokens with a hardcoded secret.")
+		return "", errors.New("server misconfiguration: JWT secret not set")
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

@@ -220,7 +220,11 @@ func (h *GameHandler) BuyPlatformItemHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Akses ditolak"})
 		return
 	}
-	buyerID := userIDVal.(uuid.UUID)
+	buyerID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Format User ID tidak valid"})
+		return
+	}
 
 	var req struct {
 		ItemType string          `json:"item_type" binding:"required"`
@@ -329,7 +333,11 @@ func (h *GameHandler) SwapGoldHandler(c *gin.Context) {
 // StakeInAppHandler - POST /api/v1/market/stake-inapp
 func (h *GameHandler) StakeInAppHandler(c *gin.Context) {
 	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, "User ID tidak valid", nil)
+		return
+	}
 
 	var req struct {
 		AssetType string          `json:"asset_type" binding:"required"`
@@ -351,7 +359,11 @@ func (h *GameHandler) StakeInAppHandler(c *gin.Context) {
 // ClaimInAppHandler - POST /api/v1/market/claim-inapp
 func (h *GameHandler) ClaimInAppHandler(c *gin.Context) {
 	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, "User ID tidak valid", nil)
+		return
+	}
 
 	if err := h.marketUC.ClaimInAppRewards(c.Request.Context(), userID); err != nil {
 		utils.SendError(c, http.StatusUnprocessableEntity, err.Error(), nil)
@@ -364,7 +376,11 @@ func (h *GameHandler) ClaimInAppHandler(c *gin.Context) {
 // DepositHandler - POST /api/v1/market/deposit
 func (h *GameHandler) DepositHandler(c *gin.Context) {
 	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, "User ID tidak valid", nil)
+		return
+	}
 
 	var req struct {
 		Asset  string          `json:"asset" binding:"required"`
@@ -386,7 +402,11 @@ func (h *GameHandler) DepositHandler(c *gin.Context) {
 // WithdrawHandler - POST /api/v1/market/withdraw
 func (h *GameHandler) WithdrawHandler(c *gin.Context) {
 	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, "User ID tidak valid", nil)
+		return
+	}
 
 	var req struct {
 		Asset  string          `json:"asset" binding:"required"`

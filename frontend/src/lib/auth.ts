@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(
-    process.env.JWT_SECRET || 'super_secret_dev_key_123!'
-);
+const jwtSecretValue = process.env.JWT_SECRET;
+if (!jwtSecretValue) {
+    console.error('[SECURITY] FATAL: JWT_SECRET environment variable is not set.');
+}
+const JWT_SECRET = new TextEncoder().encode(jwtSecretValue || '');
 
 export interface AuthContext {
     userId: string;
