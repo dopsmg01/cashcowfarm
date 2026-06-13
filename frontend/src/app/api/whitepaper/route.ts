@@ -16,6 +16,6 @@ export async function GET() {
         return NextResponse.json({ content });
     } catch (error) {
         console.error('Failed to read whitepaper:', error);
-        return NextResponse.json({ error: 'Failed to read whitepaper: ' + error }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to read whitepaper' }, { status: 500 });
     }
 }

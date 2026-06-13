@@ -665,6 +665,13 @@ func (uc *MarketUsecase) ClaimInAppRewards(ctx context.Context, userID uuid.UUID
 // === Financial Core (Simulated) ===
 
 func (uc *MarketUsecase) Deposit(ctx context.Context, userID uuid.UUID, asset string, amount decimal.Decimal) error {
+	if asset != "COW" && asset != "USDT" {
+		return errors.New("Invalid asset type: only COW or USDT supported")
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return errors.New("Amount must be positive")
+	}
+
 	return uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var user domain.User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&user).Error; err != nil {
@@ -690,6 +697,13 @@ func (uc *MarketUsecase) Deposit(ctx context.Context, userID uuid.UUID, asset st
 }
 
 func (uc *MarketUsecase) Withdraw(ctx context.Context, userID uuid.UUID, asset string, amount decimal.Decimal) error {
+	if asset != "COW" && asset != "USDT" {
+		return errors.New("Invalid asset type: only COW or USDT supported")
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return errors.New("Amount must be positive")
+	}
+
 	return uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var user domain.User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&user).Error; err != nil {

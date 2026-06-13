@@ -25,7 +25,11 @@ func (h *UserHandler) BindReferrerHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized context"})
 		return
 	}
-	userID := userIDVal.(uuid.UUID)
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID format"})
+		return
+	}
 
 	var req struct {
 		ReferrerWallet string `json:"referrer_wallet" binding:"required"`
@@ -55,7 +59,11 @@ func (h *UserHandler) GetReferralStatsHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized context"})
 		return
 	}
-	userID := userIDVal.(uuid.UUID)
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID format"})
+		return
+	}
 
 	stats, err := h.userUC.GetReferralStats(c.Request.Context(), userID)
 	if err != nil {

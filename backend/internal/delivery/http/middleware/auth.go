@@ -32,7 +32,9 @@ func RequireAuth() gin.HandlerFunc {
 		tokenString := parts[1]
 		jwtSecret := os.Getenv("JWT_SECRET")
 		if jwtSecret == "" {
-			jwtSecret = "super_secret_dev_key_123!" // Same fallback as in auth_uc.go
+			utils.SendError(c, http.StatusInternalServerError, "Server misconfiguration", nil)
+			c.Abort()
+			return
 		}
 
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {

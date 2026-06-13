@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     } catch (error: any) {
         console.error('Buy error:', error);
         return NextResponse.json(
-            { status: 'error', message: error.message || 'Internal server error' },
+            { status: 'error', message: 'Internal server error' },
             { status: 500 }
         );
     }

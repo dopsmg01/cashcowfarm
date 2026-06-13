@@ -62,7 +62,10 @@ func main() {
 		// Public Auth
 		v1.GET("/auth/nonce/:wallet", authHandler.GetNonceHandler)
 		v1.POST("/auth/login", authHandler.LoginWithSignatureHandler)
-		v1.POST("/auth/login-legacy", authHandler.LoginOrRegisterHandler) // Dev/testing only
+		// Legacy login (no signature verification) — ONLY enabled in non-production
+		if os.Getenv("ENV") != "production" {
+			v1.POST("/auth/login-legacy", authHandler.LoginOrRegisterHandler)
+		}
 
 		// Webhooks (Public but Signature protected)
 		v1.POST("/webhooks/ad-reward", gameHandler.AdWebhookHandler)
