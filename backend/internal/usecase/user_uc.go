@@ -103,10 +103,14 @@ func (uc *UserUsecase) GetReferralStats(ctx context.Context, userID uuid.UUID) (
 	}
 
 	var invites int64
-	uc.db.WithContext(ctx).Model(&domain.User{}).Where("referrer_id = ?", userID).Count(&invites)
+	if err := uc.db.WithContext(ctx).Model(&domain.User{}).Where("referrer_id = ?", userID).Count(&invites).Error; err != nil {
+		return nil, fmt.Errorf("failed to count referrals: %w", err)
+	}
 
 	var cowCount int64
-	uc.db.WithContext(ctx).Model(&domain.Cow{}).Where("owner_id = ?", userID).Count(&cowCount)
+	if err := uc.db.WithContext(ctx).Model(&domain.Cow{}).Where("owner_id = ?", userID).Count(&cowCount).Error; err != nil {
+		return nil, fmt.Errorf("failed to count cows: %w", err)
+	}
 
 	return &ReferralStats{
 		TotalDirectInvites: invites,

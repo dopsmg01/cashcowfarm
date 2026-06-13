@@ -34,6 +34,10 @@ export async function POST(request: Request) {
             .eq('wallet_address', address)
             .single();
 
+        if (fetchErr || !user) {
+            return NextResponse.json({ status: 'error', message: `User not found: ${address}` }, { status: 404 });
+        }
+
         const userData = user as any;
         const currentVal = parseFloat(userData[column]) || 0;
         const newVal = currentVal + amt;

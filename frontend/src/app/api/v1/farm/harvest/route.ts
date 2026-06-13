@@ -44,38 +44,46 @@ export async function POST(request: Request) {
             if (cow.happiness > 50) {
                 totalMilkGained += 1;
                 // Decrease happiness after harvest
-                await supabaseAdmin
+                const { error: cowUpdateErr } = await supabaseAdmin
                     .from('cows')
                     .update({
                         happiness: Math.max(cow.happiness - 30, 0),
                         last_harvested_at: now.toISOString()
                     })
                     .eq('id', cow.id);
+
+                if (cowUpdateErr) throw cowUpdateErr;
             }
         }
 
         // 4. Update Inventory
         if (totalMilkGained > 0) {
-            const { data: inventory } = await supabaseAdmin
+            const { data: inventory, error: invFetchErr } = await supabaseAdmin
                 .from('inventories')
                 .select('milk')
                 .eq('user_id', auth.userId)
                 .single();
 
+            if (invFetchErr) throw invFetchErr;
+
             if (inventory) {
-                await supabaseAdmin
+                const { error: invUpdateErr } = await supabaseAdmin
                     .from('inventories')
                     .update({ milk: inventory.milk + totalMilkGained })
                     .eq('user_id', auth.userId);
+
+                if (invUpdateErr) throw invUpdateErr;
             }
         }
 
         // Reduce daily ad count
         if (user.daily_ad_count > 0) {
-            await supabaseAdmin
+            const { error: adUpdateErr } = await supabaseAdmin
                 .from('users')
                 .update({ daily_ad_count: user.daily_ad_count - 1 })
                 .eq('id', auth.userId);
+
+            if (adUpdateErr) throw adUpdateErr;
         }
 
         return NextResponse.json({

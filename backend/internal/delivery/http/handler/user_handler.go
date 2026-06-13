@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"cashcowvalley/backend/internal/usecase"
+	"cashcowvalley/backend/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,13 +20,12 @@ func NewUserHandler(userUC *usecase.UserUsecase) *UserHandler {
 
 // BindReferrerHandler handles the request to link a user to an upline referrer.
 func (h *UserHandler) BindReferrerHandler(c *gin.Context) {
-	// The RequireAuth middleware guarantees "userID" exists in context
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized context"})
+	userIDStr := c.GetString("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, "User ID tidak valid", nil)
 		return
 	}
-	userID := userIDVal.(uuid.UUID)
 
 	var req struct {
 		ReferrerWallet string `json:"referrer_wallet" binding:"required"`
@@ -38,33 +38,27 @@ func (h *UserHandler) BindReferrerHandler(c *gin.Context) {
 
 	// 1. Usecase Logic: Bind Referrer preventing cycles
 	if err := h.userUC.BindReferrer(c.Request.Context(), userID, req.ReferrerWallet); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		utils.SendError(c, http.StatusConflict, err.Error(), nil)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "success",
-		"message": "Referrer successfully bound!",
-	})
+	utils.SendSuccess(c, http.StatusOK, "Referrer successfully bound!", nil, nil)
 }
 
 // GetReferralStatsHandler returns the user's referral link, eligibility (Cow ownership), and total invites.
 func (h *UserHandler) GetReferralStatsHandler(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized context"})
+	userIDStr := c.GetString("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, "User ID tidak valid", nil)
 		return
 	}
-	userID := userIDVal.(uuid.UUID)
 
 	stats, err := h.userUC.GetReferralStats(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"data":   stats,
-	})
+	utils.SendSuccess(c, http.StatusOK, "Referral stats berhasil diambil", stats, nil)
 }

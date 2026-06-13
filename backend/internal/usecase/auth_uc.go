@@ -35,7 +35,10 @@ func (uc *AuthUsecase) SeedDevWallet(ctx context.Context) {
 	if err == nil {
 		// Already exists, ensure ADMIN role
 		if user.Role != domain.RoleAdmin {
-			uc.db.WithContext(ctx).Model(&user).Update("role", domain.RoleAdmin)
+			if err := uc.db.WithContext(ctx).Model(&user).Update("role", domain.RoleAdmin).Error; err != nil {
+				log.Printf("[SEED] Failed to upgrade dev wallet role: %v", err)
+				return
+			}
 			log.Println("[SEED] Dev wallet role upgraded to ADMIN")
 		}
 		log.Printf("[SEED] Dev wallet already registered: %s", user.ID)
@@ -65,7 +68,10 @@ func (uc *AuthUsecase) SeedDevWallet(ctx context.Context) {
 		LandSlots: 1,
 		HasBarn:   true,
 	}
-	uc.db.WithContext(ctx).Create(&inv)
+	if err := uc.db.WithContext(ctx).Create(&inv).Error; err != nil {
+		log.Printf("[SEED] Failed to create inventory for dev wallet: %v", err)
+		return
+	}
 
 	log.Printf("[SEED] Dev wallet created as ROOT ADMIN: %s (ID: %s)", DevWalletAddress, user.ID)
 }
@@ -80,7 +86,9 @@ func (uc *AuthUsecase) GetOrCreateNonce(ctx context.Context, walletAddress strin
 	if err == nil {
 		// Existing user — rotate nonce
 		newNonce := uuid.NewString()
-		uc.db.WithContext(ctx).Model(&user).Update("nonce", newNonce)
+		if err := uc.db.WithContext(ctx).Model(&user).Update("nonce", newNonce).Error; err != nil {
+			return "", false, fmt.Errorf("failed to rotate nonce: %w", err)
+		}
 		return newNonce, true, nil
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -159,7 +167,9 @@ func (uc *AuthUsecase) LoginWithSignature(ctx context.Context, walletAddress str
 		} else {
 			// Existing user — rotate nonce for replay protection
 			user.Nonce = uuid.NewString()
-			tx.Model(&user).Update("nonce", user.Nonce)
+			if err := tx.Model(&user).Update("nonce", user.Nonce).Error; err != nil {
+				return fmt.Errorf("failed to rotate nonce: %w", err)
+			}
 		}
 
 		return nil

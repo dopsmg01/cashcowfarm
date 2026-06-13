@@ -246,23 +246,26 @@ export const useGameStore = create<GameState>()(
                     const res = await fetch(`${API_BASE}/farm/status`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (res.ok) {
-                        const json = await res.json();
-                        const data = json.data;
-                        if (data) {
-                            set({
-                                cows: data.cows || [],
-                                grassCount: data.inventory?.grass || 0,
-                                milkCount: data.inventory?.milk || 0,
-                                landSlots: data.inventory?.land_slots || 1,
-                                usdtBalance: parseFloat(data.usdt_balance) || 0,
-                                goldBalance: parseFloat(data.gold_balance) || 0,
-                                cowTokenBalance: parseFloat(data.points) || 0,
-                                dailyAdCount: data.daily_ad_count || 0,
-                                hasBarn: data.inventory?.has_barn || false,
-                                web2Stakes: data.web2_stakes || [],
-                            });
-                        }
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.error('Failed to fetch farm data:', res.status, errBody.message || errBody.error);
+                        return;
+                    }
+                    const json = await res.json();
+                    const data = json.data;
+                    if (data) {
+                        set({
+                            cows: data.cows || [],
+                            grassCount: data.inventory?.grass || 0,
+                            milkCount: data.inventory?.milk || 0,
+                            landSlots: data.inventory?.land_slots || 1,
+                            usdtBalance: parseFloat(data.usdt_balance) || 0,
+                            goldBalance: parseFloat(data.gold_balance) || 0,
+                            cowTokenBalance: parseFloat(data.points) || 0,
+                            dailyAdCount: data.daily_ad_count || 0,
+                            hasBarn: data.inventory?.has_barn || false,
+                            web2Stakes: data.web2_stakes || [],
+                        });
                     }
                 } catch (e) {
                     console.error('Failed to fetch farm data:', e);
@@ -280,8 +283,13 @@ export const useGameStore = create<GameState>()(
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({ asset_type: assetType, amount })
                     });
-                    if (res.ok) await get().fetchFarmData();
-                } catch (e) { console.error(e); }
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.error('Stake failed:', errBody.message || res.statusText);
+                        return;
+                    }
+                    await get().fetchFarmData();
+                } catch (e) { console.error('Stake error:', e); }
             },
 
             claimInApp: async () => {
@@ -292,8 +300,13 @@ export const useGameStore = create<GameState>()(
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (res.ok) await get().fetchFarmData();
-                } catch (e) { console.error(e); }
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.error('Claim failed:', errBody.message || res.statusText);
+                        return;
+                    }
+                    await get().fetchFarmData();
+                } catch (e) { console.error('Claim error:', e); }
             },
 
             deposit: async (asset, amount) => {
@@ -305,8 +318,13 @@ export const useGameStore = create<GameState>()(
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({ asset, amount })
                     });
-                    if (res.ok) await get().fetchFarmData();
-                } catch (e) { console.error(e); }
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.error('Deposit failed:', errBody.message || res.statusText);
+                        return;
+                    }
+                    await get().fetchFarmData();
+                } catch (e) { console.error('Deposit error:', e); }
             },
 
             withdraw: async (asset, amount) => {
@@ -318,8 +336,13 @@ export const useGameStore = create<GameState>()(
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({ asset, amount })
                     });
-                    if (res.ok) await get().fetchFarmData();
-                } catch (e) { console.error(e); }
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.error('Withdraw failed:', errBody.message || res.statusText);
+                        return;
+                    }
+                    await get().fetchFarmData();
+                } catch (e) { console.error('Withdraw error:', e); }
             },
 
             // Admin Actions
@@ -330,10 +353,13 @@ export const useGameStore = create<GameState>()(
                     const res = await fetch(`${API_BASE}/admin/users`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (res.ok) {
-                        const json = await res.json();
-                        set({ adminUsers: json.data || [] });
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.error('Failed to fetch admin users:', res.status, errBody.message || errBody.error);
+                        return;
                     }
+                    const json = await res.json();
+                    set({ adminUsers: json.data || [] });
                 } catch (e) { console.error('Failed to fetch admin users:', e); }
             },
 
@@ -344,10 +370,13 @@ export const useGameStore = create<GameState>()(
                     const res = await fetch(`${API_BASE}/admin/stats`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (res.ok) {
-                        const json = await res.json();
-                        set({ platformStats: json.data || null });
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.error('Failed to fetch stats:', res.status, errBody.message || errBody.error);
+                        return;
                     }
+                    const json = await res.json();
+                    set({ platformStats: json.data || null });
                 } catch (e) { console.error('Failed to fetch stats:', e); }
             },
 
